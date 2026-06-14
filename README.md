@@ -17,28 +17,28 @@ uvx headless-obsidian-mcp run --host 127.0.0.1 --port 8000
 ## Configure
 
 ```bash
-export HEADLESS_OBSIDIAN_MCP_VAULT_ROOT="$HOME/path/to/vault"
-export HEADLESS_OBSIDIAN_MCP_AUTH_TOKEN="change-me"
+cp .env.example .env
 ```
 
-Optional OpenAI-compatible embeddings:
+Then edit `.env`:
 
-```bash
-export HEADLESS_OBSIDIAN_MCP_OPENAI_API_KEY="sk-..."
-export HEADLESS_OBSIDIAN_MCP_OPENAI_BASE_URL="https://openrouter.ai/api/v1"
-export HEADLESS_OBSIDIAN_MCP_EMBEDDING_MODEL="text-embedding-3-small"
+```dotenv
+HEADLESS_OBSIDIAN_MCP_VAULT_ROOT="$HOME/path/to/vault"
+HEADLESS_OBSIDIAN_MCP_AUTH_TOKEN="change-me"
+HEADLESS_OBSIDIAN_MCP_HOST=127.0.0.1
+HEADLESS_OBSIDIAN_MCP_PORT=8008
 ```
 
 ## Run
 
 ```bash
-uv run headless-obsidian-mcp run --host 127.0.0.1 --port 8000
+uv run headless-obsidian-mcp run
 ```
 
 MCP endpoint:
 
 ```text
-http://127.0.0.1:8000/mcp
+http://127.0.0.1:8008/mcp
 ```
 
 For remote clients, see [Tunneling](docs/tunneling.md).
@@ -51,6 +51,16 @@ uv run headless-obsidian-mcp status
 uv run headless-obsidian-mcp logs -f
 uv run headless-obsidian-mcp stop
 ```
+
+Start automatically on macOS login/reboot:
+
+```bash
+uv run headless-obsidian-mcp install-launch-agent
+uv run headless-obsidian-mcp uninstall-launch-agent
+```
+
+The LaunchAgent starts only the local MCP server. Tunnels are managed separately;
+for remote access, see [Tunneling](docs/tunneling.md).
 
 ## Tools
 

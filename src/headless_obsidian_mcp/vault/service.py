@@ -59,7 +59,7 @@ class Vault:
         # upsert_note / delete_note. Out-of-band edits are picked up by
         # the file watcher (start_watching) or, as a fallback, by an
         # explicit vault_reindex call.
-        self.sync_from_disk()
+        self.sync_from_disk(embed_pending=False)
 
     # ----- file watcher lifecycle ------------------------------------------
 
@@ -329,18 +329,18 @@ class Vault:
             raise ValueError(f"limit must be between 1 and {MAX_SEARCH_LIMIT}")
         return self._index.search(query=query, limit=limit, mode=SearchMode(mode))
 
-    def sync_from_disk(self) -> dict[str, int]:
+    def sync_from_disk(self, *, embed_pending: bool = True) -> dict[str, int]:
         """Reconcile the index against the current contents of the vault.
 
         Walks every .md file, upserts changed/new notes, deletes index entries
-        whose files are gone, and (if embeddings are enabled) backfills any
-        notes whose embedding is missing or stale.
+        whose files are gone, and optionally backfills any notes whose
+        embedding is missing or stale.
 
         Returns a small summary dict so callers can log the diff.
         """
         with self._lock:
             on_disk = self._markdown_files()
-            summary = sync_index(self._index, on_disk)
+            summary = sync_index(self._index, on_disk, embed_pending=embed_pending)
             log.info(
                 "sync_from_disk +%d ~%d -%d (unchanged=%d, embedded=%d)",
                 summary["added"],
@@ -414,7 +414,16 @@ class Vault:
     def _markdown_files(self) -> dict[str, str]:
         files = {}
         for path in self._iter_markdown_paths():
-            files[self.relative(path)] = path.read_text(encoding="utf-8")
+            rel = self.relative(path)
+            try:
+                files[rel] = path.read_text(encoding="utf-8")
+            except OSError as exc:
+                log.warning(
+                    "could not read markdown path=%s (%s: %s); skipping",
+                    rel,
+                    type(exc).__name__,
+                    exc,
+                )
         return files
 
     def _iter_markdown_paths(self) -> list[Path]:

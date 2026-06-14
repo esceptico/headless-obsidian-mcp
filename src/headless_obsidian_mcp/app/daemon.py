@@ -87,7 +87,10 @@ class _DaemonStatus:
                 f"(pid {self.pid}, port {self.endpoint.port})"
             )
         elif self.running:
-            head = f"● headless-obsidian-mcp running (pid {self.pid}, port {self.endpoint.port})"
+            if self.pid is None:
+                head = f"● headless-obsidian-mcp running (port {self.endpoint.port})"
+            else:
+                head = f"● headless-obsidian-mcp running (pid {self.pid}, port {self.endpoint.port})"
         elif self.stale_pid is not None:
             head = f"○ headless-obsidian-mcp not running (stale pid {self.stale_pid})"
         else:
@@ -329,8 +332,17 @@ class DaemonService:
     def _status(self) -> _DaemonStatus:
         pid = self.pid_file.read()
         note_count = _count_notes(_index_path(self.settings.vault.root))
+        healthy = self.health_client.probe(self.endpoint, timeout=_HEALTH_PROBE_TIMEOUT)
 
         if pid is None:
+            if healthy:
+                return _DaemonStatus(
+                    self.settings,
+                    self.endpoint,
+                    running=True,
+                    note_count=note_count,
+                    healthy=True,
+                )
             return _DaemonStatus(
                 self.settings,
                 self.endpoint,
@@ -338,6 +350,14 @@ class DaemonService:
                 note_count=note_count,
             )
         if not self.process_table.is_alive(pid):
+            if healthy:
+                return _DaemonStatus(
+                    self.settings,
+                    self.endpoint,
+                    running=True,
+                    note_count=note_count,
+                    healthy=True,
+                )
             return _DaemonStatus(
                 self.settings,
                 self.endpoint,
@@ -346,7 +366,6 @@ class DaemonService:
                 stale_pid=pid,
             )
 
-        healthy = self.health_client.probe(self.endpoint, timeout=_HEALTH_PROBE_TIMEOUT)
         return _DaemonStatus(
             self.settings,
             self.endpoint,

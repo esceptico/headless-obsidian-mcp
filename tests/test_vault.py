@@ -315,6 +315,50 @@ class VaultTests(unittest.TestCase):
             self.assertEqual(summary["removed"], 1)
             self.assertEqual(self._bm25(vault, "body")["hits"], [])
 
+    def test_startup_sync_does_not_backfill_embeddings(self) -> None:
+        from unittest.mock import patch
+
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "Note.md").write_text("startup body", encoding="utf-8")
+
+            with patch(
+                "headless_obsidian_mcp.index.search.SearchIndex.embed_pending",
+                side_effect=AssertionError("embedding backfill blocks startup"),
+            ):
+                vault = Vault(
+                    VaultSettings(root=Path(tmp)),
+                    embeddings=EmbeddingSettings(api_key="test-key"),
+                )
+
+            hits = vault.search("startup", limit=10, mode=SearchMode.BM25).to_dict()[
+                "hits"
+            ]
+            self.assertEqual(hits[0]["path"], "Note.md")
+
+    def test_sync_from_disk_skips_unreadable_markdown_files(self) -> None:
+        from unittest.mock import patch
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "Good.md").write_text("readable body", encoding="utf-8")
+            (root / "Blocked.md").write_text("blocked body", encoding="utf-8")
+            original_read_text = Path.read_text
+
+            def read_text(path: Path, *args, **kwargs):
+                if path.name == "Blocked.md":
+                    raise OSError(11, "Resource deadlock avoided")
+                return original_read_text(path, *args, **kwargs)
+
+            with patch.object(Path, "read_text", read_text):
+                vault = Vault(VaultSettings(root=root), embeddings=None)
+
+            hits = vault.search("readable", limit=10, mode=SearchMode.BM25).to_dict()[
+                "hits"
+            ]
+            self.assertEqual(hits[0]["path"], "Good.md")
+            blocked = vault.search("blocked", limit=10, mode=SearchMode.BM25).to_dict()
+            self.assertEqual(blocked["hits"], [])
+
     def test_atomic_write_unique_tmp_and_fsync(self) -> None:
         import os
         from unittest.mock import patch

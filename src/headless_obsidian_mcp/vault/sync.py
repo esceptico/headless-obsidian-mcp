@@ -1,7 +1,9 @@
 from headless_obsidian_mcp.index.search import IndexedNote, SearchIndex
 
 
-def sync_index(index: SearchIndex, on_disk: dict[str, str]) -> dict[str, int]:
+def sync_index(
+    index: SearchIndex, on_disk: dict[str, str], *, embed_pending: bool = True
+) -> dict[str, int]:
     indexed = index.store.all_records()
     added = modified = unchanged = removed = 0
 
@@ -21,7 +23,7 @@ def sync_index(index: SearchIndex, on_disk: dict[str, str]) -> dict[str, int]:
         index.delete_note(rel)
         removed += 1
 
-    embedded = index.embed_pending()
+    embedded = index.embed_pending() if embed_pending else 0
     return {
         "added": added,
         "modified": modified,

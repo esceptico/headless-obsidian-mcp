@@ -103,6 +103,22 @@ class DaemonTests(unittest.TestCase):
             self.assertIn("stale", service.status())
             self.assertTrue(service.pid_file.path.exists())
 
+    def test_status_reports_health_when_pidfile_is_absent(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            service = self._service(tmp, host="127.0.0.1", port=8008)
+
+            with patch(
+                "headless_obsidian_mcp.app.daemon._HealthClient.probe",
+                return_value=True,
+            ) as probe:
+                output = service.status()
+
+            endpoint = probe.call_args.args[0]
+            self.assertIn("running", output)
+            self.assertIn("port 8008", output)
+            self.assertNotIn("pid", output)
+            self.assertEqual(endpoint.port, 8008)
+
     def test_status_probes_resolved_health_endpoint(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             service = self._service(tmp, host="0.0.0.0", port=9000)

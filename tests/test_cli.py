@@ -73,6 +73,40 @@ class CliTests(unittest.TestCase):
         factory.assert_called_once_with(host=None, port=None)
         service.status.assert_called_once_with()
 
+    def test_install_launch_agent_delegates_to_service(self) -> None:
+        runner = CliRunner()
+        service = unittest.mock.Mock()
+        service.install.return_value = (
+            "/Users/me/Library/LaunchAgents/com.headlessobsidianmcp.server.plist"
+        )
+        with patch(
+            "headless_obsidian_mcp.app.cli.LaunchAgentService.from_defaults",
+            return_value=service,
+        ) as factory:
+            result = runner.invoke(cli, ["install-launch-agent", "--no-start"])
+
+        self.assertEqual(result.exit_code, 0)
+        self.assertIn("installed", result.output)
+        factory.assert_called_once_with(working_directory=None)
+        service.install.assert_called_once_with(start=False)
+
+    def test_uninstall_launch_agent_delegates_to_service(self) -> None:
+        runner = CliRunner()
+        service = unittest.mock.Mock()
+        service.uninstall.return_value = (
+            "/Users/me/Library/LaunchAgents/com.headlessobsidianmcp.server.plist"
+        )
+        with patch(
+            "headless_obsidian_mcp.app.cli.LaunchAgentService.from_defaults",
+            return_value=service,
+        ) as factory:
+            result = runner.invoke(cli, ["uninstall-launch-agent"])
+
+        self.assertEqual(result.exit_code, 0)
+        self.assertIn("uninstalled", result.output)
+        factory.assert_called_once_with(working_directory=None)
+        service.uninstall.assert_called_once_with()
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,8 +1,10 @@
 import os
+from pathlib import Path
 
 import click
 
 from headless_obsidian_mcp.app.daemon import DaemonService
+from headless_obsidian_mcp.app.launch_agent import LaunchAgentService
 from headless_obsidian_mcp.core.config import load_settings
 from headless_obsidian_mcp.core.constants import DEFAULT_SEARCH_LIMIT
 from headless_obsidian_mcp.core.logging import configure_default_logging
@@ -49,6 +51,32 @@ def status(host: str | None, port: int | None) -> None:
 @click.option("-f", "--follow", is_flag=True)
 def logs(follow: bool) -> None:
     DaemonService.from_settings().logs(follow=follow)
+
+
+@cli.command("install-launch-agent")
+@click.option(
+    "--working-directory",
+    type=click.Path(file_okay=False, dir_okay=True, path_type=Path),
+    default=None,
+)
+@click.option("--no-start", is_flag=True)
+def install_launch_agent(working_directory: Path | None, no_start: bool) -> None:
+    service = LaunchAgentService.from_defaults(working_directory=working_directory)
+    path = service.install(start=not no_start)
+    action = "installed" if no_start else "installed and started"
+    click.echo(f"{action}: {path}")
+
+
+@cli.command("uninstall-launch-agent")
+@click.option(
+    "--working-directory",
+    type=click.Path(file_okay=False, dir_okay=True, path_type=Path),
+    default=None,
+)
+def uninstall_launch_agent(working_directory: Path | None) -> None:
+    service = LaunchAgentService.from_defaults(working_directory=working_directory)
+    path = service.uninstall()
+    click.echo(f"uninstalled: {path}")
 
 
 @cli.command()
